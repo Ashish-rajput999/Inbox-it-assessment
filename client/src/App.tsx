@@ -28,28 +28,28 @@ const topLeftContainerStyle: CSSProperties = {
   left: UI_PADDING,
   display: "flex",
   flexDirection: "column",
-  gap: "16px",
+  gap: "12px",
   pointerEvents: "none",
   zIndex: 10
 };
 
 const logoStyle: CSSProperties = {
   margin: 0,
-  fontSize: "32px",
+  fontSize: "24px",
   fontWeight: 700,
   fontFamily: "var(--font-display)",
   letterSpacing: "0.05em",
   textTransform: "uppercase",
   display: "flex",
   alignItems: "center",
-  gap: "12px",
+  gap: "10px",
   textShadow: "0 0 20px rgba(0, 242, 255, 0.4)",
   color: "#ffffff"
 };
 
 const statusDotStyle: CSSProperties = {
-  width: "8px",
-  height: "8px",
+  width: "6px",
+  height: "6px",
   borderRadius: "50%",
   boxShadow: "0 0 10px currentColor"
 };
@@ -59,11 +59,11 @@ const playerCardStyle: CSSProperties = {
   backdropFilter: `blur(${GLASS_BLUR})`,
   WebkitBackdropFilter: `blur(${GLASS_BLUR})`,
   border: `1px solid ${GLASS_BORDER}`,
-  borderRadius: "16px",
-  padding: "16px",
+  borderRadius: "12px",
+  padding: "12px",
   display: "flex",
   alignItems: "center",
-  gap: "16px",
+  gap: "12px",
   boxShadow: "0 8px 32px rgba(0, 0, 0, 0.4)",
   pointerEvents: "auto",
   animation: "slideInLeft 0.5s cubic-bezier(0.16, 1, 0.3, 1)"
@@ -79,10 +79,10 @@ const bottomLeftContainerStyle: CSSProperties = {
   WebkitBackdropFilter: `blur(${GLASS_BLUR})`,
   border: `1px solid ${GLASS_BORDER}`,
   borderRadius: "99px",
-  padding: "8px 16px",
+  padding: "6px 12px",
   display: "flex",
   alignItems: "center",
-  gap: "12px",
+  gap: "10px",
   boxShadow: "0 8px 32px rgba(0, 0, 0, 0.4)",
   pointerEvents: "auto",
   animation: "slideInBottom 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both"
@@ -93,21 +93,21 @@ const leaderboardContainerStyle: CSSProperties = {
   position: "fixed",
   top: UI_PADDING,
   right: UI_PADDING,
-  width: "280px",
+  width: "240px",
   background: GLASS_BG,
   backdropFilter: `blur(${GLASS_BLUR})`,
   WebkitBackdropFilter: `blur(${GLASS_BLUR})`,
   border: `1px solid ${GLASS_BORDER}`,
-  borderRadius: "16px",
-  padding: "20px",
+  borderRadius: "12px",
+  padding: "12px",
   boxShadow: "0 8px 32px rgba(0, 0, 0, 0.4)",
   pointerEvents: "auto",
   animation: "slideInRight 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both"
 };
 
 const leaderboardTitleStyle: CSSProperties = {
-  margin: "0 0 16px 0",
-  fontSize: "14px",
+  margin: "0 0 10px 0",
+  fontSize: "12px",
   fontWeight: 600,
   textTransform: "uppercase",
   letterSpacing: "0.1em",
@@ -123,7 +123,7 @@ const leaderboardListStyle: CSSProperties = {
   padding: 0,
   display: "flex",
   flexDirection: "column",
-  gap: "8px"
+  gap: "4px"
 };
 
 // 4. Bottom-Right: Toasts
@@ -252,6 +252,11 @@ export default function App() {
   // We find the player's own block count from the leaderboard
   const myEntry = leaderboard.find((entry) => entry.playerId === player?.id);
   const myBlockCount = myEntry ? myEntry.blockCount : 0;
+  const myRank = leaderboard.findIndex((entry) => entry.playerId === player?.id) + 1;
+
+  // Leaderboard logic: max 5 rows, pin me if not in top 5
+  const top5 = leaderboard.slice(0, 5);
+  const isNotInTop5 = myRank > 5;
 
   const handleBlockClick = useCallback((blockId: string) => {
     // Optimistically start local cooldown visual
@@ -294,6 +299,14 @@ export default function App() {
           @keyframes toastIn {
             from { transform: translateX(100%) scale(0.9); opacity: 0; }
             to { transform: translateX(0) scale(1); opacity: 1; }
+          }
+          @keyframes pulse {
+            0% { transform: scale(0.95); opacity: 0.5; }
+            50% { transform: scale(1.05); opacity: 1; }
+            100% { transform: scale(0.95); opacity: 0.5; }
+          }
+          .reconnect-pulse {
+            animation: pulse 1.5s ease-in-out infinite;
           }
           .leaderboard-row {
             transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -344,7 +357,12 @@ export default function App() {
               <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
                 TERRITORY
               </span>
-              <span style={{ fontSize: "24px", fontWeight: 700, fontFamily: "var(--font-display)" }}>
+              <span style={{ 
+                fontSize: "24px", 
+                fontWeight: 700, 
+                fontFamily: "var(--font-ui)",
+                fontVariantNumeric: "tabular-nums"
+              }}>
                 {myBlockCount}
               </span>
             </div>
@@ -355,6 +373,12 @@ export default function App() {
       {/* Bottom Left: Online Presence */}
       {hasInitialized && (
         <section style={bottomLeftContainerStyle}>
+          {!isConnected && (
+             <div style={{ display: "flex", alignItems: "center", gap: "8px", marginRight: "4px" }}>
+               <div className="reconnect-pulse" style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#fbbf24" }} />
+               <span style={{ fontSize: "11px", fontWeight: 700, color: "#fbbf24", textTransform: "uppercase" }}>Reconnecting</span>
+             </div>
+          )}
           <div style={{ display: "flex", alignItems: "center" }}>
             {/* Fake dots for aesthetic - in a real app these would be the actual player colors */}
             {leaderboard.slice(0, 3).map((entry, i) => (
@@ -362,20 +386,25 @@ export default function App() {
                 key={entry.playerId}
                 title={entry.name}
                 style={{
-                  width: 12,
-                  height: 12,
+                  width: 10,
+                  height: 10,
                   borderRadius: "50%",
                   background: entry.color,
-                  marginLeft: i > 0 ? -6 : 0,
-                  border: "2px solid #0a0f1c",
+                  marginLeft: i > 0 ? -4 : 0,
+                  border: "1.5px solid #0a0f1c",
                   position: "relative",
                   zIndex: 3 - i
                 }}
               />
             ))}
           </div>
-          <span style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-secondary)" }}>
-            <strong style={{ color: "var(--text-primary)" }}>{playerCount}</strong> AGENTS ONLINE
+          <span style={{ 
+            fontSize: "11px", 
+            fontWeight: 500, 
+            color: "var(--text-secondary)",
+            fontVariantNumeric: "tabular-nums"
+          }}>
+            <strong style={{ color: "var(--text-primary)" }}>{playerCount}</strong> AGENTS
           </span>
         </section>
       )}
@@ -385,14 +414,14 @@ export default function App() {
         <section style={leaderboardContainerStyle}>
           <h2 style={leaderboardTitleStyle}>
             Global Ranking
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M2 20h.01M7 20v-4M12 20v-8M17 20V8M22 4v16"/>
             </svg>
           </h2>
           
           {leaderboard.length > 0 ? (
             <ul style={leaderboardListStyle}>
-              {leaderboard.map((entry, index) => {
+              {top5.map((entry, index) => {
                 const isMe = entry.playerId === player?.id;
                 return (
                   <li
@@ -401,31 +430,32 @@ export default function App() {
                     style={{
                       display: "flex",
                       alignItems: "center",
-                      gap: "12px",
-                      padding: "10px 12px",
-                      borderRadius: "8px",
+                      gap: "10px",
+                      padding: "6px 8px",
+                      borderRadius: "6px",
                       background: isMe ? "rgba(255,255,255,0.05)" : "transparent",
                       border: isMe ? "1px solid rgba(255,255,255,0.1)" : "1px solid transparent",
                     }}
                   >
                     <span style={{ 
-                      fontSize: "12px", 
+                      fontSize: "11px", 
                       fontWeight: 700, 
                       color: "var(--text-secondary)",
-                      width: "16px"
+                      width: "14px",
+                      fontVariantNumeric: "tabular-nums"
                     }}>
                       {index + 1}
                     </span>
                     <div style={{
-                      width: "8px",
-                      height: "8px",
+                      width: "6px",
+                      height: "6px",
                       borderRadius: "50%",
                       backgroundColor: entry.color,
                       boxShadow: `0 0 8px ${entry.color}`
                     }} />
                     <span style={{ 
                       flex: 1, 
-                      fontSize: "14px", 
+                      fontSize: "13px", 
                       fontWeight: isMe ? 600 : 500,
                       color: isMe ? "#fff" : "var(--text-primary)",
                       whiteSpace: "nowrap",
@@ -435,7 +465,9 @@ export default function App() {
                       {entry.name}
                     </span>
                     <span style={{ 
-                      fontFamily: "var(--font-display)",
+                      fontFamily: "var(--font-ui)",
+                      fontVariantNumeric: "tabular-nums",
+                      fontSize: "13px",
                       fontWeight: 700,
                       color: entry.color
                     }}>
@@ -444,6 +476,61 @@ export default function App() {
                   </li>
                 );
               })}
+              
+              {isNotInTop5 && myEntry && (
+                <>
+                  <div style={{ height: "1px", background: "rgba(255,255,255,0.05)", margin: "2px 0" }} />
+                  <li
+                    className="leaderboard-row"
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "10px",
+                      padding: "6px 8px",
+                      borderRadius: "6px",
+                      background: "rgba(255,255,255,0.05)",
+                      border: "1px solid rgba(255,255,255,0.1)",
+                    }}
+                  >
+                    <span style={{ 
+                      fontSize: "11px", 
+                      fontWeight: 700, 
+                      color: "var(--text-secondary)",
+                      width: "14px",
+                      fontVariantNumeric: "tabular-nums"
+                    }}>
+                      {myRank}
+                    </span>
+                    <div style={{
+                      width: "6px",
+                      height: "6px",
+                      borderRadius: "50%",
+                      backgroundColor: myEntry.color,
+                      boxShadow: `0 0 8px ${myEntry.color}`
+                    }} />
+                    <span style={{ 
+                      flex: 1, 
+                      fontSize: "13px", 
+                      fontWeight: 600,
+                      color: "#fff",
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis"
+                    }}>
+                      {myEntry.name}
+                    </span>
+                    <span style={{ 
+                      fontFamily: "var(--font-ui)",
+                      fontVariantNumeric: "tabular-nums",
+                      fontSize: "13px",
+                      fontWeight: 700,
+                      color: myEntry.color
+                    }}>
+                      {myEntry.blockCount}
+                    </span>
+                  </li>
+                </>
+              )}
             </ul>
           ) : (
             <p style={{ color: "var(--text-secondary)", fontSize: "14px", textAlign: "center", margin: "20px 0" }}>

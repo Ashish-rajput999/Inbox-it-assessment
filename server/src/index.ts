@@ -7,11 +7,18 @@ import type { ClientToServerEvents, ServerToClientEvents } from "shared";
 import { createGameManager } from "./gridManager.js";
 import { registerSocketHandlers } from "./socketHandlers.js";
 
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
+const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || "*";
 
 const app = express();
 
-app.use(cors());
+app.use(cors({
+  origin: CLIENT_ORIGIN
+}));
+
+app.get("/", (_request, response) => {
+  response.json({ name: "blockwars-server", status: "ok" });
+});
 
 app.get("/health", (_request, response) => {
   response.json({ ok: true });
@@ -20,7 +27,7 @@ app.get("/health", (_request, response) => {
 const httpServer = createServer(app);
 const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
   cors: {
-    origin: "*"
+    origin: CLIENT_ORIGIN
   }
 });
 

@@ -19,10 +19,16 @@ export interface WorldBounds {
   height: number;
 }
 
+export interface CameraMargins {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+}
+
 export interface FitCameraOptions {
-  padding: number;
+  margins: CameraMargins;
   maxZoom: number;
-  offset?: WorldPoint;
 }
 
 export function worldToScreen(
@@ -50,9 +56,10 @@ export function fitCameraToBounds(
   viewport: ViewportSize,
   options: FitCameraOptions
 ): Camera {
-  const { padding, maxZoom, offset = { x: 0, y: 0 } } = options;
-  const availableWidth = Math.max(viewport.width - padding * 2, 1);
-  const availableHeight = Math.max(viewport.height - padding * 2, 1);
+  const { margins, maxZoom } = options;
+  const availableWidth = Math.max(viewport.width - margins.left - margins.right, 1);
+  const availableHeight = Math.max(viewport.height - margins.top - margins.bottom, 1);
+
   const fitZoom = Math.min(
     availableWidth / bounds.width,
     availableHeight / bounds.height,
@@ -61,13 +68,13 @@ export function fitCameraToBounds(
 
   return clampCamera(
     {
-      x: (viewport.width - bounds.width * fitZoom) / 2 + offset.x,
-      y: (viewport.height - bounds.height * fitZoom) / 2 + offset.y,
+      x: margins.left + (availableWidth - bounds.width * fitZoom) / 2,
+      y: margins.top + (availableHeight - bounds.height * fitZoom) / 2,
       zoom: fitZoom
     },
     bounds,
     viewport,
-    padding
+    margins
   );
 }
 
@@ -83,34 +90,32 @@ export function clampCamera(
   camera: Camera,
   bounds: WorldBounds,
   viewport: ViewportSize,
-  padding: number
+  margins: CameraMargins
 ): Camera {
+  const availableWidth = Math.max(viewport.width - margins.left - margins.right, 1);
+  const availableHeight = Math.max(viewport.height - margins.top - margins.bottom, 1);
   const scaledWidth = bounds.width * camera.zoom;
   const scaledHeight = bounds.height * camera.zoom;
 
   const nextX =
-    scaledWidth + padding * 2 <= viewport.width
-      ? (viewport.width - scaledWidth) / 2
+    scaledWidth <= availableWidth
+      ? margins.left + (availableWidth - scaledWidth) / 2
       : clamp(
           camera.x,
-          viewport.width - padding - scaledWidth,
-          padding
+          viewport.width - margins.right - scaledWidth,
+          margins.left
         );
 
   const nextY =
-    scaledHeight + padding * 2 <= viewport.height
-      ? (viewport.height - scaledHeight) / 2
+    scaledHeight <= availableHeight
+      ? margins.top + (availableHeight - scaledHeight) / 2
       : clamp(
           camera.y,
-          viewport.height - padding - scaledHeight,
-          padding
+          viewport.height - margins.bottom - scaledHeight,
+          margins.top
         );
 
-  return {
-    x: nextX,
-    y: nextY,
-    zoom: camera.zoom
-  };
+  return { ...camera, x: nextX, y: nextY };
 }
 
 function clamp(value: number, minimum: number, maximum: number): number {

@@ -16,25 +16,33 @@ import {
   screenToWorld,
   type Camera,
   type ViewportSize,
-  type WorldPoint
+  type WorldPoint,
+  type CameraMargins
 } from "../canvas/camera";
 import {
   drawGridScene,
   getBlockAtWorldPoint,
   getGridWorldBounds,
-  GRID_PADDING,
   MAX_ZOOM,
   type BlockAnimation,
   type RemoteCursor,
   type FloatingText,
   CELL_PITCH
 } from "../canvas/renderGrid";
+
 import { useGameSocket } from "../hooks/useGameSocket";
 import { socket } from "../socket";
 import { useGameStore } from "../store/gameStore";
 
 const CLICK_DRAG_THRESHOLD = 6;
 const CURSOR_EMIT_THROTTLE = 40;
+
+const HUD_MARGINS: CameraMargins = {
+  top: 90,
+  right: 280, // Tighter padding in App.tsx might reduce this, but 280 is safe for now
+  bottom: 60,
+  left: 60
+};
 const canvasStyle: CSSProperties = {
   display: "block",
   width: "100vw",
@@ -175,10 +183,8 @@ function GridCanvas({ onClaimBlock }: GridCanvasProps) {
         getGridWorldBounds(grid),
         viewport,
         {
-          padding: GRID_PADDING,
-          maxZoom: MAX_ZOOM,
-          // Offset the initial view to clear the top-left UI panel
-          offset: { x: 120, y: 60 }
+          margins: HUD_MARGINS,
+          maxZoom: MAX_ZOOM
         }
       );
 
@@ -196,7 +202,7 @@ function GridCanvas({ onClaimBlock }: GridCanvasProps) {
             },
             getGridWorldBounds(grid),
             viewport,
-            GRID_PADDING
+            HUD_MARGINS
           )
         : fitCamera;
 
@@ -327,10 +333,8 @@ function GridCanvas({ onClaimBlock }: GridCanvasProps) {
         getGridWorldBounds(nextGrid),
         viewportRef.current,
         {
-          padding: GRID_PADDING,
-          maxZoom: MAX_ZOOM,
-          // Offset the initial view to clear the top-left UI panel
-          offset: { x: 120, y: 60 }
+          margins: HUD_MARGINS,
+          maxZoom: MAX_ZOOM
         }
       );
 
@@ -467,7 +471,7 @@ function GridCanvas({ onClaimBlock }: GridCanvasProps) {
           },
           getGridWorldBounds(grid),
           viewportRef.current,
-          GRID_PADDING
+          HUD_MARGINS
         );
         dirtyRef.current = true;
         scheduleRender();
@@ -574,7 +578,7 @@ function GridCanvas({ onClaimBlock }: GridCanvasProps) {
       },
       getGridWorldBounds(grid),
       viewportRef.current,
-      GRID_PADDING
+      HUD_MARGINS
     );
     dirtyRef.current = true;
     scheduleRender();
