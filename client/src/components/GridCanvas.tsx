@@ -37,11 +37,16 @@ import { useGameStore } from "../store/gameStore";
 const CLICK_DRAG_THRESHOLD = 6;
 const CURSOR_EMIT_THROTTLE = 40;
 
-const HUD_MARGINS: CameraMargins = {
-  top: 80,
-  right: 250, 
-  bottom: 40,
-  left: 40
+const getDynamicMargins = (width: number): CameraMargins => {
+  const isSmall = width < 800;
+  const isTiny = width < 500;
+  
+  return {
+    top: isTiny ? 70 : 80,
+    right: isTiny ? 20 : (isSmall ? 40 : 250),
+    bottom: isTiny ? 80 : 40,
+    left: isTiny ? 20 : 40
+  };
 };
 const canvasStyle: CSSProperties = {
   display: "block",
@@ -179,11 +184,12 @@ function GridCanvas({ onClaimBlock }: GridCanvasProps) {
         return;
       }
 
+      const margins = getDynamicMargins(viewport.width);
       const fitCamera = fitCameraToBounds(
         getGridWorldBounds(grid),
         viewport,
         {
-          margins: HUD_MARGINS,
+          margins,
           maxZoom: MAX_ZOOM
         }
       );
@@ -202,7 +208,7 @@ function GridCanvas({ onClaimBlock }: GridCanvasProps) {
             },
             getGridWorldBounds(grid),
             viewport,
-            HUD_MARGINS
+            margins
           )
         : fitCamera;
 
@@ -330,11 +336,12 @@ function GridCanvas({ onClaimBlock }: GridCanvasProps) {
       previousGrid.columns !== nextGrid.columns ||
       previousGrid.rows !== nextGrid.rows
     ) {
+      const margins = getDynamicMargins(viewportRef.current.width);
       const fitCamera = fitCameraToBounds(
         getGridWorldBounds(nextGrid),
         viewportRef.current,
         {
-          margins: HUD_MARGINS,
+          margins,
           maxZoom: MAX_ZOOM
         }
       );
@@ -475,7 +482,7 @@ function GridCanvas({ onClaimBlock }: GridCanvasProps) {
           },
           getGridWorldBounds(grid),
           viewportRef.current,
-          HUD_MARGINS
+          getDynamicMargins(viewportRef.current.width)
         );
         dirtyRef.current = true;
         scheduleRender();
@@ -582,7 +589,7 @@ function GridCanvas({ onClaimBlock }: GridCanvasProps) {
       },
       getGridWorldBounds(grid),
       viewportRef.current,
-      HUD_MARGINS
+      getDynamicMargins(viewportRef.current.width)
     );
     dirtyRef.current = true;
     scheduleRender();

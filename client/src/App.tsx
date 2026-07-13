@@ -8,6 +8,7 @@ import { useGameStore } from "./store/gameStore";
 
 // --- Global UI Constants ---
 const UI_PADDING = "24px";
+const UI_PADDING_SMALL = "12px";
 const GLASS_BG = "rgba(10, 15, 28, 0.75)";
 const GLASS_BORDER = "rgba(0, 242, 255, 0.15)";
 const GLASS_BLUR = "16px";
@@ -332,14 +333,28 @@ export default function App() {
           .leaderboard-row {
             transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
           }
+          @media (max-width: 800px) {
+            .hud-top-left { top: ${UI_PADDING_SMALL} !important; left: ${UI_PADDING_SMALL} !important; }
+            .hud-bottom-left { bottom: ${UI_PADDING_SMALL} !important; left: ${UI_PADDING_SMALL} !important; }
+            .hud-right { top: ${UI_PADDING_SMALL} !important; right: ${UI_PADDING_SMALL} !important; }
+            .hud-bottom-right { bottom: ${UI_PADDING_SMALL} !important; right: ${UI_PADDING_SMALL} !important; }
+            .hud-leaderboard { width: 180px !important; }
+            .hud-controls { display: none !important; }
+            .hud-player-card { padding: 8px !important; gap: 8px !important; }
+            .hud-logo { font-size: 18px !important; }
+          }
+          @media (max-width: 500px) {
+            .hud-leaderboard { display: none !important; }
+            .hud-bottom-left { bottom: 80px !important; }
+          }
         `}
       </style>
 
       <GridCanvas onClaimBlock={handleBlockClick} />
 
       {/* Top Left: Logo & Player Info */}
-      <section style={topLeftContainerStyle}>
-        <h1 style={logoStyle}>
+      <section style={topLeftContainerStyle} className="hud-top-left">
+        <h1 style={logoStyle} className="hud-logo">
           <div
             style={{
               ...statusDotStyle,
@@ -351,35 +366,35 @@ export default function App() {
         </h1>
 
         {hasInitialized && player && (
-          <div style={playerCardStyle}>
+          <div style={playerCardStyle} className="hud-player-card">
             <CooldownRing
               color={player.color}
               cooldownMs={cooldownRemaining}
               lastClaimTime={lastClaimTime}
             />
-            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-              <span style={{ fontSize: "14px", color: "var(--text-secondary)" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+              <span style={{ fontSize: "11px", color: "var(--text-secondary)" }}>
                 AGENT
               </span>
-              <span style={{ fontSize: "18px", fontWeight: 600, color: player.color }}>
+              <span style={{ fontSize: "14px", fontWeight: 600, color: player.color }}>
                 {player.name}
               </span>
             </div>
             <div
               style={{
                 marginLeft: "auto",
-                paddingLeft: "16px",
+                paddingLeft: "12px",
                 borderLeft: "1px solid rgba(255,255,255,0.1)",
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "flex-end"
               }}
             >
-              <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
+              <span style={{ fontSize: "10px", color: "var(--text-secondary)" }}>
                 TERRITORY
               </span>
               <span style={{ 
-                fontSize: "24px", 
+                fontSize: "18px", 
                 fontWeight: 700, 
                 fontFamily: "var(--font-ui)",
                 fontVariantNumeric: "tabular-nums"
@@ -393,7 +408,7 @@ export default function App() {
 
       {/* Bottom Left: Online Presence */}
       {hasInitialized && (
-        <section style={bottomLeftContainerStyle}>
+        <section style={bottomLeftContainerStyle} className="hud-bottom-left">
           {!isConnected && (
              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginRight: "4px" }}>
                <div className="reconnect-pulse" style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#fbbf24" }} />
@@ -432,8 +447,8 @@ export default function App() {
 
       {/* Top Right: Leaderboard & Controls */}
       {hasInitialized && (
-        <aside style={rightContainerStyle}>
-          <section style={leaderboardContainerStyle}>
+        <aside style={rightContainerStyle} className="hud-right">
+          <section style={leaderboardContainerStyle} className="hud-leaderboard">
             <h2 style={leaderboardTitleStyle}>
               Global Ranking
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -561,7 +576,7 @@ export default function App() {
             )}
           </section>
 
-          <section style={controlsContainerStyle}>
+          <section style={controlsContainerStyle} className="hud-controls">
             <h3 style={{ ...leaderboardTitleStyle, margin: "0 0 8px 0" }}>Controls</h3>
             <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px" }}>
@@ -576,13 +591,25 @@ export default function App() {
                 <span style={{ color: "var(--text-secondary)" }}>Zoom</span>
                 <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>Scroll</span>
               </div>
+              <div style={{ 
+                marginTop: "4px", 
+                paddingTop: "8px", 
+                borderTop: "1px solid rgba(255,255,255,0.05)",
+                fontSize: "11px",
+                color: "var(--accent-color)",
+                fontWeight: 500,
+                textAlign: "center",
+                fontStyle: "italic"
+              }}>
+                Tip: Works great in split-view!
+              </div>
             </div>
           </section>
         </aside>
       )}
 
       {/* Bottom Right: Toasts */}
-      <div style={toastContainerStyle}>
+      <div style={toastContainerStyle} className="hud-bottom-right">
         {toasts.map((toast) => (
           <div key={toast.id} style={toastStyle}>
             {toast.message}
