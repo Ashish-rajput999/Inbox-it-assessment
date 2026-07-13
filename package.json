@@ -1,0 +1,17 @@
+{
+  "name": "blockwars-monorepo",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": [
+    "client",
+    "server",
+    "shared"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev --workspace client\" \"npm run dev --workspace server\"",
+    "build": "npm run build --workspace shared && npm run build --workspace server && npm run build --workspace client"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.0"
+  }
+}
