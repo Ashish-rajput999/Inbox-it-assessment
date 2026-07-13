@@ -22,6 +22,7 @@ export interface WorldBounds {
 export interface FitCameraOptions {
   padding: number;
   maxZoom: number;
+  offset?: WorldPoint;
 }
 
 export function worldToScreen(
@@ -49,23 +50,24 @@ export function fitCameraToBounds(
   viewport: ViewportSize,
   options: FitCameraOptions
 ): Camera {
-  const availableWidth = Math.max(viewport.width - options.padding * 2, 1);
-  const availableHeight = Math.max(viewport.height - options.padding * 2, 1);
+  const { padding, maxZoom, offset = { x: 0, y: 0 } } = options;
+  const availableWidth = Math.max(viewport.width - padding * 2, 1);
+  const availableHeight = Math.max(viewport.height - padding * 2, 1);
   const fitZoom = Math.min(
     availableWidth / bounds.width,
     availableHeight / bounds.height,
-    options.maxZoom
+    maxZoom
   );
 
   return clampCamera(
     {
-      x: (viewport.width - bounds.width * fitZoom) / 2,
-      y: (viewport.height - bounds.height * fitZoom) / 2,
+      x: (viewport.width - bounds.width * fitZoom) / 2 + offset.x,
+      y: (viewport.height - bounds.height * fitZoom) / 2 + offset.y,
       zoom: fitZoom
     },
     bounds,
     viewport,
-    options.padding
+    padding
   );
 }
 

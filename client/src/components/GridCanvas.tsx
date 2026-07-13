@@ -160,7 +160,9 @@ function GridCanvas({ onClaimBlock }: GridCanvasProps) {
         viewport,
         {
           padding: GRID_PADDING,
-          maxZoom: MAX_ZOOM
+          maxZoom: MAX_ZOOM,
+          // Offset the initial view to clear the top-left UI panel
+          offset: { x: 120, y: 60 }
         }
       );
 

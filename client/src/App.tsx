@@ -1,4 +1,4 @@
-import { useCallback, type CSSProperties } from "react";
+import { useCallback, useState, type CSSProperties } from "react";
 import { SOCKET_EVENTS } from "shared";
 
 import GridCanvas from "./components/GridCanvas";
@@ -22,7 +22,7 @@ const overlayStyle: CSSProperties = {
   left: "20px",
   width: "320px",
   maxHeight: "calc(100vh - 40px)",
-  overflow: "auto",
+  overflow: "hidden",
   padding: "18px 20px",
   borderRadius: "18px",
   border: "1px solid rgba(148, 163, 184, 0.18)",
@@ -31,7 +31,22 @@ const overlayStyle: CSSProperties = {
   backdropFilter: "blur(16px)",
   boxShadow: "0 24px 80px rgba(2, 6, 23, 0.45)",
   boxSizing: "border-box",
-  pointerEvents: "none"
+  pointerEvents: "auto",
+  transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
+};
+
+const collapseButtonStyle: CSSProperties = {
+  position: "absolute",
+  top: "18px",
+  right: "20px",
+  background: "rgba(148, 163, 184, 0.12)",
+  border: "1px solid rgba(148, 163, 184, 0.1)",
+  color: "#94a3b8",
+  borderRadius: "8px",
+  padding: "4px 8px",
+  fontSize: "12px",
+  cursor: "pointer",
+  transition: "all 0.2s"
 };
 
 const rowStyle: CSSProperties = {
@@ -123,6 +138,7 @@ const toastStyle: CSSProperties = {
 export default function App() {
   useGameSocket();
 
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const hasInitialized = useGameStore((state) => state.hasInitialized);
   const isConnected = useGameStore((state) => state.isConnected);
   const leaderboard = useGameStore((state) => state.leaderboard);
@@ -146,60 +162,96 @@ export default function App() {
       </style>
       <GridCanvas onClaimBlock={handleBlockClick} />
 
-      <section style={overlayStyle}>
+      <section
+        style={{
+          ...overlayStyle,
+          height: isCollapsed ? "68px" : "auto",
+          opacity: isCollapsed ? 0.85 : 1
+        }}
+      >
+        <button
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          style={collapseButtonStyle}
+        >
+          {isCollapsed ? "Expand" : "Hide"}
+        </button>
+
         <h1 style={titleStyle}>BlockWars</h1>
-        <div style={rowStyle}>
-          <span
-            style={{
-              ...dotBaseStyle,
-              backgroundColor: isConnected ? "#22c55e" : "#ef4444"
-            }}
-          />
-          <span>
-            {isConnected ? "Connected to server" : "Disconnected from server"}
-          </span>
-        </div>
 
-        <p style={mutedTextStyle}>
-          {hasInitialized
-            ? "Canvas renderer active. Drag to pan, scroll to zoom, click to claim."
-            : "Joining arena..."}
-        </p>
+        {!isCollapsed && (
+          <>
+            <div style={rowStyle}>
+              <span
+                style={{
+                  ...dotBaseStyle,
+                  backgroundColor: isConnected ? "#22c55e" : "#ef4444"
+                }}
+              />
+              <span>
+                {isConnected
+                  ? "Connected to server"
+                  : "Disconnected from server"}
+              </span>
+            </div>
 
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "14px" }}>
-          <span style={badgeStyle}>
-            Player: {player ? player.name : "Waiting..."}
-          </span>
-          <span style={badgeStyle}>Online: {playerCount}</span>
-          <span style={badgeStyle}>
-            Color:{" "}
-            {player ? (
-              <span style={{ color: player.color }}>{player.color}</span>
-            ) : (
-              "Waiting..."
-            )}
-          </span>
-        </div>
+            <p style={mutedTextStyle}>
+              {hasInitialized
+                ? "Canvas renderer active. Drag to pan, scroll to zoom, click to claim."
+                : "Joining arena..."}
+            </p>
 
-        <div>
-          <p style={{ margin: 0, fontSize: "14px", fontWeight: 600, color: "#f8fafc" }}>
-            Leaderboard
-          </p>
-          {leaderboard.length > 0 ? (
-            <ul style={leaderboardListStyle}>
-              {leaderboard.map((entry) => (
-                <li key={entry.playerId} style={leaderboardItemStyle}>
-                  <span style={{ ...playerNameStyle, color: entry.color }}>
-                    {entry.name}
-                  </span>
-                  <span>{entry.blockCount}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p style={{ ...mutedTextStyle, marginTop: "12px" }}>No claims yet.</p>
-          )}
-        </div>
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: "8px",
+                marginBottom: "14px"
+              }}
+            >
+              <span style={badgeStyle}>
+                Player: {player ? player.name : "Waiting..."}
+              </span>
+              <span style={badgeStyle}>Online: {playerCount}</span>
+              <span style={badgeStyle}>
+                Color:{" "}
+                {player ? (
+                  <span style={{ color: player.color }}>{player.color}</span>
+                ) : (
+                  "Waiting..."
+                )}
+              </span>
+            </div>
+
+            <div style={{ maxHeight: "300px", overflow: "auto" }}>
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: "14px",
+                  fontWeight: 600,
+                  color: "#f8fafc"
+                }}
+              >
+                Leaderboard
+              </p>
+              {leaderboard.length > 0 ? (
+                <ul style={leaderboardListStyle}>
+                  {leaderboard.map((entry) => (
+                    <li key={entry.playerId} style={leaderboardItemStyle}>
+                      <span style={{ ...playerNameStyle, color: entry.color }}>
+                        {entry.name}
+                      </span>
+                      <span>{entry.blockCount}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p style={{ ...mutedTextStyle, marginTop: "12px" }}>
+                  No claims yet.
+                </p>
+              )}
+            </div>
+          </>
+        )}
       </section>
 
       <div style={toastContainerStyle}>
