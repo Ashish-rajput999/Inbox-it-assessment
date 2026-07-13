@@ -88,11 +88,19 @@ const bottomLeftContainerStyle: CSSProperties = {
   animation: "slideInBottom 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both"
 };
 
-// 3. Top-Right: Leaderboard
-const leaderboardContainerStyle: CSSProperties = {
+// 3. Top-Right: Leaderboard & Controls
+const rightContainerStyle: CSSProperties = {
   position: "fixed",
   top: UI_PADDING,
   right: UI_PADDING,
+  display: "flex",
+  flexDirection: "column",
+  gap: "12px",
+  pointerEvents: "none",
+  zIndex: 10
+};
+
+const leaderboardContainerStyle: CSSProperties = {
   width: "240px",
   background: GLASS_BG,
   backdropFilter: `blur(${GLASS_BLUR})`,
@@ -103,6 +111,19 @@ const leaderboardContainerStyle: CSSProperties = {
   boxShadow: "0 8px 32px rgba(0, 0, 0, 0.4)",
   pointerEvents: "auto",
   animation: "slideInRight 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both"
+};
+
+const controlsContainerStyle: CSSProperties = {
+  width: "240px",
+  background: GLASS_BG,
+  backdropFilter: `blur(${GLASS_BLUR})`,
+  WebkitBackdropFilter: `blur(${GLASS_BLUR})`,
+  border: `1px solid ${GLASS_BORDER}`,
+  borderRadius: "12px",
+  padding: "12px",
+  boxShadow: "0 8px 32px rgba(0, 0, 0, 0.4)",
+  pointerEvents: "auto",
+  animation: "slideInRight 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both"
 };
 
 const leaderboardTitleStyle: CSSProperties = {
@@ -409,135 +430,155 @@ export default function App() {
         </section>
       )}
 
-      {/* Top Right: Leaderboard */}
+      {/* Top Right: Leaderboard & Controls */}
       {hasInitialized && (
-        <section style={leaderboardContainerStyle}>
-          <h2 style={leaderboardTitleStyle}>
-            Global Ranking
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M2 20h.01M7 20v-4M12 20v-8M17 20V8M22 4v16"/>
-            </svg>
-          </h2>
-          
-          {leaderboard.length > 0 ? (
-            <ul style={leaderboardListStyle}>
-              {top5.map((entry, index) => {
-                const isMe = entry.playerId === player?.id;
-                return (
-                  <li
-                    key={entry.playerId}
-                    className="leaderboard-row"
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "10px",
-                      padding: "6px 8px",
-                      borderRadius: "6px",
-                      background: isMe ? "rgba(255,255,255,0.05)" : "transparent",
-                      border: isMe ? "1px solid rgba(255,255,255,0.1)" : "1px solid transparent",
-                    }}
-                  >
-                    <span style={{ 
-                      fontSize: "11px", 
-                      fontWeight: 700, 
-                      color: "var(--text-secondary)",
-                      width: "14px",
-                      fontVariantNumeric: "tabular-nums"
-                    }}>
-                      {index + 1}
-                    </span>
-                    <div style={{
-                      width: "6px",
-                      height: "6px",
-                      borderRadius: "50%",
-                      backgroundColor: entry.color,
-                      boxShadow: `0 0 8px ${entry.color}`
-                    }} />
-                    <span style={{ 
-                      flex: 1, 
-                      fontSize: "13px", 
-                      fontWeight: isMe ? 600 : 500,
-                      color: isMe ? "#fff" : "var(--text-primary)",
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis"
-                    }}>
-                      {entry.name}
-                    </span>
-                    <span style={{ 
-                      fontFamily: "var(--font-ui)",
-                      fontVariantNumeric: "tabular-nums",
-                      fontSize: "13px",
-                      fontWeight: 700,
-                      color: entry.color
-                    }}>
-                      {entry.blockCount}
-                    </span>
-                  </li>
-                );
-              })}
-              
-              {isNotInTop5 && myEntry && (
-                <>
-                  <div style={{ height: "1px", background: "rgba(255,255,255,0.05)", margin: "2px 0" }} />
-                  <li
-                    className="leaderboard-row"
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "10px",
-                      padding: "6px 8px",
-                      borderRadius: "6px",
-                      background: "rgba(255,255,255,0.05)",
-                      border: "1px solid rgba(255,255,255,0.1)",
-                    }}
-                  >
-                    <span style={{ 
-                      fontSize: "11px", 
-                      fontWeight: 700, 
-                      color: "var(--text-secondary)",
-                      width: "14px",
-                      fontVariantNumeric: "tabular-nums"
-                    }}>
-                      {myRank}
-                    </span>
-                    <div style={{
-                      width: "6px",
-                      height: "6px",
-                      borderRadius: "50%",
-                      backgroundColor: myEntry.color,
-                      boxShadow: `0 0 8px ${myEntry.color}`
-                    }} />
-                    <span style={{ 
-                      flex: 1, 
-                      fontSize: "13px", 
-                      fontWeight: 600,
-                      color: "#fff",
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis"
-                    }}>
-                      {myEntry.name}
-                    </span>
-                    <span style={{ 
-                      fontFamily: "var(--font-ui)",
-                      fontVariantNumeric: "tabular-nums",
-                      fontSize: "13px",
-                      fontWeight: 700,
-                      color: myEntry.color
-                    }}>
-                      {myEntry.blockCount}
-                    </span>
-                  </li>
-                </>
-              )}
-            </ul>
-          ) : (
-            <p style={{ color: "var(--text-secondary)", fontSize: "14px", textAlign: "center", margin: "20px 0" }}>
-              Awaiting first blood...
-            </p>
-          )}
-        </section>
+        <aside style={rightContainerStyle}>
+          <section style={leaderboardContainerStyle}>
+            <h2 style={leaderboardTitleStyle}>
+              Global Ranking
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M2 20h.01M7 20v-4M12 20v-8M17 20V8M22 4v16"/>
+              </svg>
+            </h2>
+            
+            {leaderboard.length > 0 ? (
+              <ul style={leaderboardListStyle}>
+                {top5.map((entry, index) => {
+                  const isMe = entry.playerId === player?.id;
+                  return (
+                    <li
+                      key={entry.playerId}
+                      className="leaderboard-row"
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "10px",
+                        padding: "6px 8px",
+                        borderRadius: "6px",
+                        background: isMe ? "rgba(255,255,255,0.05)" : "transparent",
+                        border: isMe ? "1px solid rgba(255,255,255,0.1)" : "1px solid transparent",
+                      }}
+                    >
+                      <span style={{ 
+                        fontSize: "11px", 
+                        fontWeight: 700, 
+                        color: "var(--text-secondary)",
+                        width: "14px",
+                        fontVariantNumeric: "tabular-nums"
+                      }}>
+                        {index + 1}
+                      </span>
+                      <div style={{
+                        width: "6px",
+                        height: "6px",
+                        borderRadius: "50%",
+                        backgroundColor: entry.color,
+                        boxShadow: `0 0 8px ${entry.color}`
+                      }} />
+                      <span style={{ 
+                        flex: 1, 
+                        fontSize: "13px", 
+                        fontWeight: isMe ? 600 : 500,
+                        color: isMe ? "#fff" : "var(--text-primary)",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis"
+                      }}>
+                        {entry.name}
+                      </span>
+                      <span style={{ 
+                        fontFamily: "var(--font-ui)",
+                        fontVariantNumeric: "tabular-nums",
+                        fontSize: "13px",
+                        fontWeight: 700,
+                        color: entry.color
+                      }}>
+                        {entry.blockCount}
+                      </span>
+                    </li>
+                  );
+                })}
+                
+                {isNotInTop5 && myEntry && (
+                  <>
+                    <div style={{ height: "1px", background: "rgba(255,255,255,0.05)", margin: "2px 0" }} />
+                    <li
+                      className="leaderboard-row"
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "10px",
+                        padding: "6px 8px",
+                        borderRadius: "6px",
+                        background: "rgba(255,255,255,0.05)",
+                        border: "1px solid rgba(255,255,255,0.1)",
+                      }}
+                    >
+                      <span style={{ 
+                        fontSize: "11px", 
+                        fontWeight: 700, 
+                        color: "var(--text-secondary)",
+                        width: "14px",
+                        fontVariantNumeric: "tabular-nums"
+                      }}>
+                        {myRank}
+                      </span>
+                      <div style={{
+                        width: "6px",
+                        height: "6px",
+                        borderRadius: "50%",
+                        backgroundColor: myEntry.color,
+                        boxShadow: `0 0 8px ${myEntry.color}`
+                      }} />
+                      <span style={{ 
+                        flex: 1, 
+                        fontSize: "13px", 
+                        fontWeight: 600,
+                        color: "#fff",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis"
+                      }}>
+                        {myEntry.name}
+                      </span>
+                      <span style={{ 
+                        fontFamily: "var(--font-ui)",
+                        fontVariantNumeric: "tabular-nums",
+                        fontSize: "13px",
+                        fontWeight: 700,
+                        color: myEntry.color
+                      }}>
+                        {myEntry.blockCount}
+                      </span>
+                    </li>
+                  </>
+                )}
+              </ul>
+            ) : (
+              <p style={{ color: "var(--text-secondary)", fontSize: "14px", textAlign: "center", margin: "20px 0" }}>
+                Awaiting first blood...
+              </p>
+            )}
+          </section>
+
+          <section style={controlsContainerStyle}>
+            <h3 style={{ ...leaderboardTitleStyle, margin: "0 0 8px 0" }}>Controls</h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px" }}>
+                <span style={{ color: "var(--text-secondary)" }}>Claim Block</span>
+                <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>Left Click</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px" }}>
+                <span style={{ color: "var(--text-secondary)" }}>Pan Camera</span>
+                <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>Drag</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px" }}>
+                <span style={{ color: "var(--text-secondary)" }}>Zoom</span>
+                <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>Scroll</span>
+              </div>
+            </div>
+          </section>
+        </aside>
       )}
 
       {/* Bottom Right: Toasts */}

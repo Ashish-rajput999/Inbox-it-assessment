@@ -38,10 +38,10 @@ const CLICK_DRAG_THRESHOLD = 6;
 const CURSOR_EMIT_THROTTLE = 40;
 
 const HUD_MARGINS: CameraMargins = {
-  top: 90,
-  right: 280, // Tighter padding in App.tsx might reduce this, but 280 is safe for now
-  bottom: 60,
-  left: 60
+  top: 80,
+  right: 250, 
+  bottom: 40,
+  left: 40
 };
 const canvasStyle: CSSProperties = {
   display: "block",
@@ -319,6 +319,7 @@ function GridCanvas({ onClaimBlock }: GridCanvasProps) {
       hasFittedCameraRef.current = false;
       hoveredBlockIdRef.current = null;
       animationsRef.current.clear();
+      remoteCursorsRef.current.clear();
       dirtyRef.current = true;
       updateCursor();
       return;
@@ -341,6 +342,9 @@ function GridCanvas({ onClaimBlock }: GridCanvasProps) {
       minimumZoomRef.current = fitCamera.zoom;
       cameraRef.current = fitCamera;
       hasFittedCameraRef.current = true;
+      
+      // Reset cursors on fresh grid init to prevent stale artifacts
+      remoteCursorsRef.current.clear();
     } else {
       for (let index = 0; index < nextGrid.blocks.length; index += 1) {
         const nextBlock = nextGrid.blocks[index];

@@ -141,7 +141,13 @@ export function registerSocketHandlers(
 
     socket.on(
       SOCKET_EVENTS.cursorMove,
-      ({ x, y }) => {
+      (payload) => {
+        // Robustness: ignore malformed payloads without crashing
+        if (!payload || typeof payload.x !== "number" || typeof payload.y !== "number") {
+          return;
+        }
+
+        const { x, y } = payload;
         const now = Date.now();
         const lastUpdate = playerLastCursorUpdate.get(player.id) ?? 0;
 
@@ -166,7 +172,13 @@ export function registerSocketHandlers(
 
     socket.on(
       SOCKET_EVENTS.claimBlock,
-      ({ blockId }: ClaimBlockPayload) => {
+      (payload) => {
+        // Robustness: ignore malformed payloads
+        if (!payload || typeof payload.blockId !== "string") {
+          return;
+        }
+
+        const { blockId } = payload;
         const claimResult = gameManager.claimBlock(player.id, blockId);
 
         socket.emit(SOCKET_EVENTS.claimResult, claimResult);
