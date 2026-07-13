@@ -25,7 +25,9 @@ import {
   GRID_PADDING,
   MAX_ZOOM,
   type BlockAnimation,
-  type RemoteCursor
+  type RemoteCursor,
+  type FloatingText,
+  CELL_PITCH
 } from "../canvas/renderGrid";
 import { useGameSocket } from "../hooks/useGameSocket";
 import { socket } from "../socket";
@@ -73,6 +75,7 @@ function GridCanvas({ onClaimBlock }: GridCanvasProps) {
   const hoveredBlockIdRef = useRef<string | null>(null);
   const animationsRef = useRef<Map<string, BlockAnimation>>(new Map());
   const remoteCursorsRef = useRef<Map<string, RemoteCursor>>(new Map());
+  const floatingTextsRef = useRef<FloatingText[]>([]);
   const lastCursorEmitRef = useRef<number>(0);
   const lastEmittedWorldPointRef = useRef<WorldPoint | null>(null);
   const dirtyRef = useRef(true);
@@ -80,6 +83,19 @@ function GridCanvas({ onClaimBlock }: GridCanvasProps) {
   const pointerStateRef = useRef<PointerDragState>(INITIAL_POINTER_STATE);
   const hasFittedCameraRef = useRef(false);
   const dprRef = useRef(1);
+
+  const addFloatingText = (text: string, block: any) => {
+    floatingTextsRef.current.push({
+      id: Math.random().toString(36).slice(2, 9),
+      text,
+      x: (block.x + 0.5) * CELL_PITCH,
+      y: (block.y + 0.5) * CELL_PITCH,
+      startTime: performance.now(),
+      color: block.ownerColor || "#ffffff"
+    });
+    dirtyRef.current = true;
+    scheduleRender();
+  };
 
   useGameSocket({
     onCursorUpdate: (payload) => {
@@ -241,6 +257,7 @@ function GridCanvas({ onClaimBlock }: GridCanvasProps) {
         playerId: playerIdRef.current,
         animations: animationsRef.current,
         remoteCursors: remoteCursorsRef.current,
+        floatingTexts: floatingTextsRef.current,
         viewport
       });
 
@@ -311,7 +328,9 @@ function GridCanvas({ onClaimBlock }: GridCanvasProps) {
         viewportRef.current,
         {
           padding: GRID_PADDING,
-          maxZoom: MAX_ZOOM
+          maxZoom: MAX_ZOOM,
+          // Offset the initial view to clear the top-left UI panel
+          offset: { x: 120, y: 60 }
         }
       );
 
@@ -320,11 +339,25 @@ function GridCanvas({ onClaimBlock }: GridCanvasProps) {
       hasFittedCameraRef.current = true;
     } else {
       for (let index = 0; index < nextGrid.blocks.length; index += 1) {
-        if (nextGrid.blocks[index] !== previousGrid.blocks[index]) {
-          animationsRef.current.set(nextGrid.blocks[index].id, {
-            blockId: nextGrid.blocks[index].id,
-            startTime: performance.now()
+        const nextBlock = nextGrid.blocks[index];
+        const prevBlock = previousGrid.blocks[index];
+
+        if (nextBlock !== prevBlock) {
+          const isSteal =
+            prevBlock.ownerId !== null &&
+            prevBlock.ownerId !== nextBlock.ownerId;
+
+          animationsRef.current.set(nextBlock.id, {
+            blockId: nextBlock.id,
+            startTime: performance.now(),
+            type: isSteal ? "steal" : "claim",
+            previousColor: prevBlock.ownerColor
           });
+
+          // If I claimed it, add a floating "+1"
+            if (nextBlock.ownerId === playerIdRef.current) {
+              addFloatingText("+1", nextBlock);
+            }
         }
       }
     }

@@ -1,0 +1,80 @@
+:root {
+  --bg-color: #05080f;
+  --accent-color: #00f2ff;
+  --panel-bg: rgba(10, 15, 28, 0.75);
+  --panel-border: rgba(0, 242, 255, 0.15);
+  --panel-blur: 16px;
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --font-display: 'Orbitron', 'Space Grotesk', sans-serif;
+  --font-ui: 'Inter', system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-color);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  overflow: hidden;
+  user-select: none;
+}
+
+#root {
+  width: 100vw;
+  height: 100vh;
+  position: relative;
+}
+
+/* Subtle drifting background glow */
+.bg-glow {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  background: 
+    radial-gradient(circle at 50% 50%, rgba(0, 242, 255, 0.03) 0%, transparent 50%),
+    radial-gradient(circle at 20% 80%, rgba(131, 56, 236, 0.02) 0%, transparent 40%),
+    radial-gradient(circle at 80% 20%, rgba(255, 0, 200, 0.02) 0%, transparent 40%);
+  animation: drift 20s ease-in-out infinite alternate;
+}
+
+@keyframes drift {
+  from { transform: scale(1) translate(0, 0); }
+  to { transform: scale(1.1) translate(2%, 2%); }
+}
+
+.glass-panel {
+  background: var(--panel-bg);
+  backdrop-filter: blur(var(--panel-blur));
+  -webkit-backdrop-filter: blur(var(--panel-blur));
+  border: 1px solid var(--panel-border);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
+  border-radius: 12px;
+}
+
+.text-display {
+  font-family: var(--font-display);
+  letter-spacing: 0.05em;
+}
+
+/* Scrollbar styling for HUD panels */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.2);
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.4);
+}

@@ -8,16 +8,18 @@ export const CELL_GAP = 1;
 export const CELL_PITCH = CELL_SIZE + CELL_GAP;
 export const GRID_PADDING = 56;
 export const MAX_ZOOM = 8;
-export const UNCLAIMED_FILL = "#1a1f2e";
-export const UNCLAIMED_BORDER = "rgba(148, 163, 184, 0.18)";
-const GRID_BACKGROUND = "#0a0f1d";
-const GRID_LINE_COLOR = "rgba(148, 163, 184, 0.08)";
-const HOVER_OUTLINE = "rgba(226, 232, 240, 0.92)";
-const OWN_BLOCK_GLOW = "rgba(255, 255, 255, 0.2)";
+export const UNCLAIMED_FILL = "#0f172a";
+export const UNCLAIMED_BORDER = "rgba(148, 163, 184, 0.12)";
+const GRID_BACKGROUND = "#070b14";
+const GRID_LINE_COLOR = "rgba(0, 242, 255, 0.04)";
+const HOVER_OUTLINE = "#00f2ff";
+const OWN_BLOCK_SHIMMER = "rgba(255, 255, 255, 0.15)";
 
 export interface BlockAnimation {
   blockId: string;
   startTime: number;
+  type: "claim" | "steal";
+  previousColor?: string | null;
 }
 
 export interface RemoteCursor {
@@ -31,6 +33,15 @@ export interface RemoteCursor {
   removeStartTime?: number;
 }
 
+export interface FloatingText {
+  id: string;
+  text: string;
+  x: number;
+  y: number;
+  startTime: number;
+  color: string;
+}
+
 export interface DrawGridSceneOptions {
   camera: Camera;
   ctx: CanvasRenderingContext2D;
@@ -40,6 +51,7 @@ export interface DrawGridSceneOptions {
   playerId: string | null;
   animations: Map<string, BlockAnimation>;
   remoteCursors: Map<string, RemoteCursor>;
+  floatingTexts: FloatingText[];
   viewport: ViewportSize;
 }
 
@@ -84,6 +96,7 @@ export function drawGridScene({
   playerId,
   animations,
   remoteCursors,
+  floatingTexts,
   viewport
 }: DrawGridSceneOptions): boolean {
   const bounds = getGridWorldBounds(grid);
@@ -104,11 +117,14 @@ export function drawGridScene({
   for (const block of grid.blocks) {
     const animation = animations.get(block.id);
     const animationProgress = animation
-      ? Math.min((now - animation.startTime) / 400, 1)
+      ? Math.min((now - animation.startTime) / 500, 1)
       : 1;
 
     if (animationProgress < 1) {
       hasActiveAnimations = true;
+      if (animation && (animation.type === "claim" || animation.type === "steal")) {
+        drawRipple(ctx, block, animationProgress, camera);
+      }
     } else if (animation) {
       animations.delete(block.id);
     }
@@ -118,6 +134,8 @@ export function drawGridScene({
       isOwnedByPlayer: block.ownerId !== null && block.ownerId === playerId,
       now,
       animationProgress,
+      animationType: animation?.type,
+      previousColor: animation?.previousColor,
       camera
     });
   }
@@ -128,7 +146,49 @@ export function drawGridScene({
     hasActiveAnimations = true;
   }
 
+  // Render floating texts
+  const textsAnimating = drawFloatingTexts(ctx, floatingTexts, camera, now);
+  if (textsAnimating) {
+    hasActiveAnimations = true;
+  }
+
   return hasActiveAnimations;
+}
+
+function drawFloatingTexts(
+  ctx: CanvasRenderingContext2D,
+  texts: FloatingText[],
+  camera: Camera,
+  now: number
+): boolean {
+  if (texts.length === 0) return false;
+
+  ctx.save();
+  const DURATION = 1200;
+
+  for (let i = texts.length - 1; i >= 0; i--) {
+    const text = texts[i];
+    const elapsed = now - text.startTime;
+    const progress = Math.min(elapsed / DURATION, 1);
+
+    if (progress >= 1) {
+      texts.splice(i, 1);
+      continue;
+    }
+
+    const opacity = 1 - Math.pow(progress, 2);
+    const floatY = -30 * progress;
+    const screenPos = worldToScreen({ x: text.x, y: text.y }, camera);
+
+    ctx.globalAlpha = opacity;
+    ctx.fillStyle = text.color;
+    ctx.font = `bold ${Math.max(12, 16 * camera.zoom)}px var(--font-display)`;
+    ctx.textAlign = "center";
+    ctx.fillText(text.text, screenPos.x, screenPos.y + floatY);
+  }
+
+  ctx.restore();
+  return texts.length > 0;
 }
 
 function drawRemoteCursors(
@@ -257,6 +317,8 @@ interface DrawBlockOptions {
   isOwnedByPlayer: boolean;
   now: number;
   animationProgress: number;
+  animationType?: "claim" | "steal";
+  previousColor?: string | null;
   camera: Camera;
 }
 
@@ -265,9 +327,18 @@ function drawBlock(
   block: Block,
   options: DrawBlockOptions
 ): void {
-  const { hovered, isOwnedByPlayer, animationProgress, camera } = options;
+  const {
+    hovered,
+    isOwnedByPlayer,
+    animationProgress,
+    animationType,
+    previousColor,
+    camera,
+    now
+  } = options;
+  const isAnimating = animationProgress < 1;
   const scale = getAnimationScale(animationProgress);
-  const glowStrength = animationProgress < 1 ? 1 - animationProgress : 0;
+
   const screenPosition = worldToScreen(
     { x: block.x * CELL_PITCH, y: block.y * CELL_PITCH },
     camera
@@ -280,14 +351,29 @@ function drawBlock(
   const drawHeight = height * scale;
   const x = centerX - drawWidth / 2;
   const y = centerY - drawHeight / 2;
-  const radius = Math.max(3, 5 * camera.zoom * scale);
-  const fillColor = getBlockFill(block, hovered);
+  const radius = Math.max(2, 4 * camera.zoom * scale);
 
   ctx.save();
 
-  if (glowStrength > 0 && block.ownerColor) {
-    ctx.shadowColor = withAlpha(block.ownerColor, 0.45 * glowStrength);
-    ctx.shadowBlur = 22 * camera.zoom * glowStrength;
+  // Block fill with optional steal flash
+  let fillColor = getBlockFill(block, hovered);
+  if (isAnimating && animationType === "steal" && previousColor) {
+    // Flash old color briefly (first 30% of animation)
+    const flashProgress = Math.min(animationProgress / 0.3, 1);
+    if (flashProgress < 1) {
+      fillColor = mixColors(previousColor, fillColor, flashProgress);
+    }
+  }
+
+  // Glow for claimed blocks
+  if (block.ownerColor && camera.zoom > 0.5) {
+    const baseGlow = isOwnedByPlayer ? 0.4 : 0.25;
+    const pulseGlow = isOwnedByPlayer ? Math.sin(now / 400) * 0.1 : 0;
+    const animGlow = isAnimating ? (1 - animationProgress) * 0.5 : 0;
+    const strength = baseGlow + pulseGlow + animGlow;
+
+    ctx.shadowColor = withAlpha(block.ownerColor, strength);
+    ctx.shadowBlur = 12 * camera.zoom * (isAnimating ? scale : 1);
   }
 
   ctx.fillStyle = fillColor;
@@ -296,36 +382,76 @@ function drawBlock(
 
   ctx.shadowBlur = 0;
 
-  if (block.ownerColor) {
-    ctx.strokeStyle = hovered
-      ? withAlpha("#ffffff", 0.9)
-      : withAlpha("#ffffff", 0.08);
-    ctx.lineWidth = hovered ? Math.max(1.5, camera.zoom * 1.1) : 1;
+  // Border / Outline
+  if (hovered) {
+    ctx.strokeStyle = HOVER_OUTLINE;
+    ctx.lineWidth = Math.max(2, camera.zoom * 1.5);
+    ctx.shadowColor = withAlpha(HOVER_OUTLINE, 0.8);
+    ctx.shadowBlur = 8 * camera.zoom;
+  } else if (block.ownerColor) {
+    ctx.strokeStyle = withAlpha("#ffffff", 0.1);
+    ctx.lineWidth = 1;
   } else {
-    ctx.strokeStyle = hovered
-      ? withAlpha("#ffffff", 0.9)
-      : UNCLAIMED_BORDER;
-    ctx.lineWidth = hovered ? Math.max(1.5, camera.zoom) : 1;
+    ctx.strokeStyle = UNCLAIMED_BORDER;
+    ctx.lineWidth = 1;
   }
 
   drawRoundedRectPath(ctx, x, y, drawWidth, drawHeight, radius);
   ctx.stroke();
 
+  // Shimmer for own territory
   if (isOwnedByPlayer) {
-    ctx.strokeStyle = OWN_BLOCK_GLOW;
-    ctx.lineWidth = Math.max(1, camera.zoom * 1.1);
+    const shimmerAlpha = 0.1 + Math.sin(now / 400) * 0.05;
+    ctx.strokeStyle = withAlpha("#ffffff", shimmerAlpha);
+    ctx.lineWidth = Math.max(1, camera.zoom * 0.8);
+    const inset = camera.zoom * 1.5;
     drawRoundedRectPath(
       ctx,
-      x + camera.zoom * 1.2,
-      y + camera.zoom * 1.2,
-      Math.max(drawWidth - camera.zoom * 2.4, 0),
-      Math.max(drawHeight - camera.zoom * 2.4, 0),
-      Math.max(radius - camera.zoom, 2)
+      x + inset,
+      y + inset,
+      Math.max(drawWidth - inset * 2, 0),
+      Math.max(drawHeight - inset * 2, 0),
+      Math.max(radius - inset, 1)
     );
     ctx.stroke();
   }
 
   ctx.restore();
+}
+
+function drawRipple(
+  ctx: CanvasRenderingContext2D,
+  block: Block,
+  progress: number,
+  camera: Camera
+): void {
+  if (!block.ownerColor) return;
+
+  const screenPosition = worldToScreen(
+    { x: (block.x + 0.5) * CELL_PITCH, y: (block.y + 0.5) * CELL_PITCH },
+    camera
+  );
+
+  const maxRippleSize = CELL_SIZE * 4 * camera.zoom;
+  const rippleSize = progress * maxRippleSize;
+  const opacity = (1 - progress) * 0.6;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(screenPosition.x, screenPosition.y, rippleSize, 0, Math.PI * 2);
+  ctx.strokeStyle = withAlpha(block.ownerColor, opacity);
+  ctx.lineWidth = 2 * camera.zoom;
+  ctx.stroke();
+  ctx.restore();
+}
+
+function mixColors(color1: string, color2: string, ratio: number): string {
+  const rgb1 = hexToRgb(color1);
+  const rgb2 = hexToRgb(color2);
+  const r = mixChannel(rgb1[0], rgb2[0], ratio);
+  const g = mixChannel(rgb1[1], rgb2[1], ratio);
+  const b = mixChannel(rgb1[2], rgb2[2], ratio);
+  return `rgb(${r}, ${g}, ${b})`;
 }
 
 function getBlockFill(block: Block, hovered: boolean): string {
