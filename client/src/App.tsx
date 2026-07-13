@@ -1,38 +1,44 @@
-import { useEffect, type CSSProperties } from "react";
-import type {
-  Block,
-  ClaimBlockResult,
-  InitPayload,
-  LeaderboardEntry
-} from "shared";
+import { useCallback, type CSSProperties } from "react";
 import { SOCKET_EVENTS } from "shared";
 
+import GridCanvas from "./components/GridCanvas";
+import { useGameSocket } from "./hooks/useGameSocket";
 import { socket } from "./socket";
 import { useGameStore } from "./store/gameStore";
 
 const pageStyle: CSSProperties = {
-  minHeight: "100vh",
-  padding: "32px",
+  position: "relative",
+  width: "100vw",
+  height: "100vh",
+  overflow: "hidden",
+  backgroundColor: "#0a0f1d",
   fontFamily: "Inter, system-ui, sans-serif",
-  backgroundColor: "#0f172a",
-  color: "#e2e8f0",
-  boxSizing: "border-box"
+  color: "#e2e8f0"
 };
 
-const cardStyle: CSSProperties = {
-  maxWidth: "1200px",
-  margin: "0 auto",
-  padding: "24px",
-  borderRadius: "16px",
-  border: "1px solid #1e293b",
-  backgroundColor: "#111827"
+const overlayStyle: CSSProperties = {
+  position: "fixed",
+  top: "20px",
+  left: "20px",
+  width: "320px",
+  maxHeight: "calc(100vh - 40px)",
+  overflow: "auto",
+  padding: "18px 20px",
+  borderRadius: "18px",
+  border: "1px solid rgba(148, 163, 184, 0.18)",
+  background:
+    "linear-gradient(180deg, rgba(15, 23, 42, 0.88), rgba(10, 15, 29, 0.78))",
+  backdropFilter: "blur(16px)",
+  boxShadow: "0 24px 80px rgba(2, 6, 23, 0.45)",
+  boxSizing: "border-box",
+  pointerEvents: "none"
 };
 
 const rowStyle: CSSProperties = {
   display: "flex",
   alignItems: "center",
   gap: "12px",
-  marginBottom: "16px"
+  marginBottom: "12px"
 };
 
 const dotBaseStyle: CSSProperties = {
@@ -42,117 +48,73 @@ const dotBaseStyle: CSSProperties = {
   display: "inline-block"
 };
 
-const gridStyle: CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "repeat(40, 18px)",
-  gap: "2px",
-  marginTop: "24px",
-  marginBottom: "24px"
+const titleStyle: CSSProperties = {
+  margin: "0 0 16px",
+  fontSize: "28px",
+  lineHeight: 1.1
 };
 
-const blockStyle: CSSProperties = {
-  width: "18px",
-  height: "18px",
-  backgroundColor: "#374151",
-  border: "none",
+const mutedTextStyle: CSSProperties = {
+  margin: "0 0 10px",
+  color: "#cbd5e1",
+  fontSize: "14px"
+};
+
+const leaderboardListStyle: CSSProperties = {
+  listStyle: "none",
+  margin: "12px 0 0",
   padding: 0,
-  cursor: "pointer"
+  display: "grid",
+  gap: "8px"
+};
+
+const leaderboardItemStyle: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: "12px",
+  padding: "10px 12px",
+  borderRadius: "12px",
+  backgroundColor: "rgba(15, 23, 42, 0.6)",
+  border: "1px solid rgba(148, 163, 184, 0.12)"
+};
+
+const playerNameStyle: CSSProperties = {
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap"
+};
+
+const badgeStyle: CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: "8px",
+  padding: "6px 10px",
+  borderRadius: "999px",
+  backgroundColor: "rgba(15, 23, 42, 0.78)",
+  border: "1px solid rgba(148, 163, 184, 0.14)",
+  fontSize: "13px"
 };
 
 export default function App() {
-  const {
-    grid,
-    hasInitialized,
-    isConnected,
-    leaderboard,
-    player,
-    playerCount,
-    initializeGame,
-    setConnected,
-    setLeaderboard,
-    setPlayerCount,
-    updateBlock
-  } = useGameStore();
+  useGameSocket();
 
-  useEffect(() => {
-    const handleConnect = () => {
-      setConnected(true);
-    };
+  const hasInitialized = useGameStore((state) => state.hasInitialized);
+  const isConnected = useGameStore((state) => state.isConnected);
+  const leaderboard = useGameStore((state) => state.leaderboard);
+  const player = useGameStore((state) => state.player);
+  const playerCount = useGameStore((state) => state.playerCount);
 
-    const handleDisconnect = () => {
-      setConnected(false);
-    };
-
-    const handleInit = ({
-      player: nextPlayer,
-      grid: nextGrid
-    }: InitPayload) => {
-      initializeGame(nextPlayer, nextGrid);
-    };
-
-    const handleClaimResult = (result: ClaimBlockResult) => {
-      if (result.success) {
-        return;
-      }
-
-      if (result.reason === "on_cooldown") {
-        console.warn("claim_result", result.reason, result.remainingMs);
-        return;
-      }
-
-      console.warn("claim_result", result.reason);
-    };
-
-    const handleBlockUpdated = (block: Block) => {
-      updateBlock(block);
-    };
-
-    const handlePlayerCount = (count: number) => {
-      setPlayerCount(count);
-    };
-
-    const handleLeaderboardUpdated = (nextLeaderboard: LeaderboardEntry[]) => {
-      setLeaderboard(nextLeaderboard);
-    };
-
-    if (socket.connected) {
-      setConnected(true);
-    }
-
-    socket.on(SOCKET_EVENTS.connect, handleConnect);
-    socket.on(SOCKET_EVENTS.disconnect, handleDisconnect);
-    socket.on(SOCKET_EVENTS.init, handleInit);
-    socket.on(SOCKET_EVENTS.claimResult, handleClaimResult);
-    socket.on(SOCKET_EVENTS.blockUpdated, handleBlockUpdated);
-    socket.on(SOCKET_EVENTS.playerCount, handlePlayerCount);
-    socket.on(SOCKET_EVENTS.leaderboardUpdated, handleLeaderboardUpdated);
-
-    return () => {
-      socket.off(SOCKET_EVENTS.connect, handleConnect);
-      socket.off(SOCKET_EVENTS.disconnect, handleDisconnect);
-      socket.off(SOCKET_EVENTS.init, handleInit);
-      socket.off(SOCKET_EVENTS.claimResult, handleClaimResult);
-      socket.off(SOCKET_EVENTS.blockUpdated, handleBlockUpdated);
-      socket.off(SOCKET_EVENTS.playerCount, handlePlayerCount);
-      socket.off(SOCKET_EVENTS.leaderboardUpdated, handleLeaderboardUpdated);
-    };
-  }, [
-    initializeGame,
-    setConnected,
-    setLeaderboard,
-    setPlayerCount,
-    updateBlock
-  ]);
-
-  const handleBlockClick = (blockId: string) => {
+  const handleBlockClick = useCallback((blockId: string) => {
     socket.emit(SOCKET_EVENTS.claimBlock, { blockId });
-  };
+  }, []);
 
   return (
     <main style={pageStyle}>
-      <section style={cardStyle}>
-        <h1 style={{ marginTop: 0, marginBottom: "24px" }}>BlockWars</h1>
+      <GridCanvas onClaimBlock={handleBlockClick} />
 
+      <section style={overlayStyle}>
+        <h1 style={titleStyle}>BlockWars</h1>
         <div style={rowStyle}>
           <span
             style={{
@@ -161,64 +123,50 @@ export default function App() {
             }}
           />
           <span>
-            Connection status: {isConnected ? "connected" : "disconnected"}
+            {isConnected ? "Connected to server" : "Disconnected from server"}
           </span>
         </div>
 
-        <p>
-          Your player: {player ? player.name : "Waiting for init..."}
+        <p style={mutedTextStyle}>
+          {hasInitialized
+            ? "Canvas renderer active. Drag to pan, scroll to zoom, click to claim."
+            : "Joining arena..."}
         </p>
 
-        <p>
-          Your color:{" "}
-          {player ? (
-            <span style={{ color: player.color }}>{player.color}</span>
-          ) : (
-            "Waiting for init..."
-          )}
-        </p>
-
-        <p>
-          {hasInitialized && grid
-            ? `Grid loaded: ${grid.blocks.length} blocks`
-            : "Grid loading..."}
-        </p>
-
-        <p>Player count: {playerCount}</p>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "14px" }}>
+          <span style={badgeStyle}>
+            Player: {player ? player.name : "Waiting..."}
+          </span>
+          <span style={badgeStyle}>Online: {playerCount}</span>
+          <span style={badgeStyle}>
+            Color:{" "}
+            {player ? (
+              <span style={{ color: player.color }}>{player.color}</span>
+            ) : (
+              "Waiting..."
+            )}
+          </span>
+        </div>
 
         <div>
-          <p style={{ marginBottom: "8px" }}>Leaderboard:</p>
+          <p style={{ margin: 0, fontSize: "14px", fontWeight: 600, color: "#f8fafc" }}>
+            Leaderboard
+          </p>
           {leaderboard.length > 0 ? (
-            <ul style={{ marginTop: 0 }}>
+            <ul style={leaderboardListStyle}>
               {leaderboard.map((entry) => (
-                <li key={entry.playerId}>
-                  {entry.name} ({entry.color}) - {entry.blockCount}
+                <li key={entry.playerId} style={leaderboardItemStyle}>
+                  <span style={{ ...playerNameStyle, color: entry.color }}>
+                    {entry.name}
+                  </span>
+                  <span>{entry.blockCount}</span>
                 </li>
               ))}
             </ul>
           ) : (
-            <p>No claims yet.</p>
+            <p style={{ ...mutedTextStyle, marginTop: "12px" }}>No claims yet.</p>
           )}
         </div>
-
-        {grid ? (
-          <div style={gridStyle}>
-            {grid.blocks.map((block) => (
-              <button
-                key={block.id}
-                type="button"
-                aria-label={`Claim ${block.id}`}
-                onClick={() => {
-                  handleBlockClick(block.id);
-                }}
-                style={{
-                  ...blockStyle,
-                  backgroundColor: block.ownerColor ?? "#374151"
-                }}
-              />
-            ))}
-          </div>
-        ) : null}
       </section>
     </main>
   );
