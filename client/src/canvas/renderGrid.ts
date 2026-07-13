@@ -20,6 +20,17 @@ export interface BlockAnimation {
   startTime: number;
 }
 
+export interface RemoteCursor {
+  playerId: string;
+  name: string;
+  color: string;
+  current: WorldPoint;
+  target: WorldPoint;
+  lastUpdateAt: number;
+  isRemoving: boolean;
+  removeStartTime?: number;
+}
+
 export interface DrawGridSceneOptions {
   camera: Camera;
   ctx: CanvasRenderingContext2D;
@@ -28,6 +39,7 @@ export interface DrawGridSceneOptions {
   now: number;
   playerId: string | null;
   animations: Map<string, BlockAnimation>;
+  remoteCursors: Map<string, RemoteCursor>;
   viewport: ViewportSize;
 }
 
@@ -71,6 +83,7 @@ export function drawGridScene({
   now,
   playerId,
   animations,
+  remoteCursors,
   viewport
 }: DrawGridSceneOptions): boolean {
   const bounds = getGridWorldBounds(grid);
@@ -84,7 +97,7 @@ export function drawGridScene({
   ctx.fillStyle = GRID_BACKGROUND;
   ctx.fillRect(0, 0, viewport.width, viewport.height);
 
-  drawGridBackground(ctx, screenOrigin, screenSize, grid, camera.zoom);
+  drawGridBackground(ctx, screenOrigin, screenSize, grid, camera.zoom, viewport);
 
   let hasActiveAnimations = false;
 
@@ -109,31 +122,130 @@ export function drawGridScene({
     });
   }
 
+  // Render remote cursors after blocks
+  const cursorsAnimating = drawRemoteCursors(ctx, remoteCursors, camera, now);
+  if (cursorsAnimating) {
+    hasActiveAnimations = true;
+  }
+
   return hasActiveAnimations;
+}
+
+function drawRemoteCursors(
+  ctx: CanvasRenderingContext2D,
+  remoteCursors: Map<string, RemoteCursor>,
+  camera: Camera,
+  now: number
+): boolean {
+  let isAnimating = false;
+
+  for (const [playerId, cursor] of remoteCursors.entries()) {
+    // Timeout cursors that haven't been updated in 10s
+    if (!cursor.isRemoving && now - cursor.lastUpdateAt > 10000) {
+      cursor.isRemoving = true;
+      cursor.removeStartTime = now;
+    }
+
+    // Interpolate position (Lerp factor 0.2 per frame for smooth gliding)
+    const dx = cursor.target.x - cursor.current.x;
+    const dy = cursor.target.y - cursor.current.y;
+
+    if (Math.abs(dx) > 0.01 || Math.abs(dy) > 0.01) {
+      cursor.current.x += dx * 0.2;
+      cursor.current.y += dy * 0.2;
+      isAnimating = true;
+    }
+
+    // Handle fade out
+    let opacity = 1;
+    if (cursor.isRemoving && cursor.removeStartTime) {
+      const elapsed = now - cursor.removeStartTime;
+      opacity = Math.max(0, 1 - elapsed / 300);
+      if (opacity > 0) {
+        isAnimating = true;
+      } else {
+        remoteCursors.delete(playerId);
+        continue;
+      }
+    }
+
+    drawCursor(ctx, cursor, camera, opacity);
+  }
+
+  return isAnimating;
+}
+
+function drawCursor(
+  ctx: CanvasRenderingContext2D,
+  cursor: RemoteCursor,
+  camera: Camera,
+  opacity: number
+): void {
+  const screenPos = worldToScreen(cursor.current, camera);
+
+  // Cap cursor screen size so it doesn't get comically huge when zoomed in
+  const cursorScale = Math.min(camera.zoom, 1.5);
+  const pointerSize = 14 * cursorScale;
+
+  ctx.save();
+  ctx.globalAlpha = opacity;
+
+  // Draw pointer (smooth triangle)
+  ctx.fillStyle = cursor.color;
+  ctx.beginPath();
+  ctx.moveTo(screenPos.x, screenPos.y);
+  ctx.lineTo(screenPos.x + pointerSize, screenPos.y + pointerSize * 0.5);
+  ctx.lineTo(screenPos.x + pointerSize * 0.5, screenPos.y + pointerSize);
+  ctx.closePath();
+  ctx.fill();
+
+  // Draw name pill
+  const padding = 6 * cursorScale;
+  const fontSize = Math.max(10, 12 * cursorScale);
+  ctx.font = `600 ${fontSize}px Inter, system-ui, sans-serif`;
+  const textMetrics = ctx.measureText(cursor.name);
+  const pillWidth = textMetrics.width + padding * 2;
+  const pillHeight = fontSize + padding;
+  const pillX = screenPos.x + pointerSize * 0.8;
+  const pillY = screenPos.y + pointerSize * 0.8;
+
+  ctx.fillStyle = "rgba(15, 23, 42, 0.9)";
+  ctx.beginPath();
+  ctx.roundRect(pillX, pillY, pillWidth, pillHeight, 4 * cursorScale);
+  ctx.fill();
+
+  ctx.fillStyle = cursor.color;
+  ctx.textBaseline = "top";
+  ctx.fillText(cursor.name, pillX + padding, pillY + padding / 2);
+
+  ctx.restore();
 }
 
 function drawGridBackground(
   ctx: CanvasRenderingContext2D,
   origin: WorldPoint,
-  size: ViewportSize,
+  _size: ViewportSize,
   grid: GridState,
-  zoom: number
+  zoom: number,
+  viewport: ViewportSize
 ): void {
   ctx.save();
   ctx.strokeStyle = GRID_LINE_COLOR;
   ctx.lineWidth = 1;
   ctx.beginPath();
 
-  for (let column = 0; column <= grid.columns; column += 1) {
-    const x = origin.x + column * CELL_PITCH * zoom - CELL_GAP * zoom * 0.5;
-    ctx.moveTo(x, origin.y);
-    ctx.lineTo(x, origin.y + size.height);
+  const pitch = CELL_PITCH * zoom;
+  const offsetX = (origin.x - CELL_GAP * zoom * 0.5) % pitch;
+  const offsetY = (origin.y - CELL_GAP * zoom * 0.5) % pitch;
+
+  for (let x = offsetX; x <= viewport.width; x += pitch) {
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, viewport.height);
   }
 
-  for (let row = 0; row <= grid.rows; row += 1) {
-    const y = origin.y + row * CELL_PITCH * zoom - CELL_GAP * zoom * 0.5;
-    ctx.moveTo(origin.x, y);
-    ctx.lineTo(origin.x + size.width, y);
+  for (let y = offsetY; y <= viewport.height; y += pitch) {
+    ctx.moveTo(0, y);
+    ctx.lineTo(viewport.width, y);
   }
 
   ctx.stroke();

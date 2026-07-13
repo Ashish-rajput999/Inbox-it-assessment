@@ -34,7 +34,10 @@ export const SOCKET_EVENTS = {
   claimResult: "claim_result",
   blockUpdated: "block_updated",
   playerCount: "player_count",
-  leaderboardUpdated: "leaderboard_updated"
+  leaderboardUpdated: "leaderboard_updated",
+  cursorMove: "cursor_move",
+  cursorUpdate: "cursor_update",
+  cursorRemove: "cursor_remove"
 } as const;
 
 export type SocketEventName =
@@ -43,6 +46,29 @@ export type SocketEventName =
 export interface InitPayload {
   player: Player;
   grid: GridState;
+}
+
+export interface PlayerCountPayload {
+  count: number;
+  event?: "join" | "leave";
+  playerName?: string;
+}
+
+export interface CursorMovePayload {
+  x: number;
+  y: number;
+}
+
+export interface CursorUpdatePayload {
+  playerId: string;
+  name: string;
+  color: string;
+  x: number;
+  y: number;
+}
+
+export interface CursorRemovePayload {
+  playerId: string;
 }
 
 export interface ClaimBlockPayload {
@@ -72,10 +98,13 @@ export interface ServerToClientEvents {
   init: (payload: InitPayload) => void;
   claim_result: (payload: ClaimBlockResult) => void;
   block_updated: (block: Block) => void;
-  player_count: (count: number) => void;
+  player_count: (payload: PlayerCountPayload) => void;
   leaderboard_updated: (entries: LeaderboardEntry[]) => void;
+  cursor_update: (payload: CursorUpdatePayload) => void;
+  cursor_remove: (payload: CursorRemovePayload) => void;
 }
 
 export interface ClientToServerEvents {
   claim_block: (payload: ClaimBlockPayload) => void;
+  cursor_move: (payload: CursorMovePayload) => void;
 }

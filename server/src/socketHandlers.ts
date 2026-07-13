@@ -114,6 +114,7 @@ export function registerSocketHandlers(
   gameManager: GameManager
 ): void {
   const activeColorCounts = createInitialColorCounts();
+  const playerLastCursorUpdate = new Map<string, number>();
 
   io.on(SOCKET_EVENTS.connect, (socket: BlockWarsSocket) => {
     const color = pickLeastUsedColor(activeColorCounts);
@@ -130,7 +131,38 @@ export function registerSocketHandlers(
       grid: gameManager.getGridState()
     });
     socket.emit(SOCKET_EVENTS.leaderboardUpdated, gameManager.getLeaderboard());
-    io.emit(SOCKET_EVENTS.playerCount, playerCount);
+
+    // Broadcast join event with metadata for toasts
+    io.emit(SOCKET_EVENTS.playerCount, {
+      count: playerCount,
+      event: "join",
+      playerName: player.name
+    });
+
+    socket.on(
+      SOCKET_EVENTS.cursorMove,
+      ({ x, y }) => {
+        const now = Date.now();
+        const lastUpdate = playerLastCursorUpdate.get(player.id) ?? 0;
+
+        // Rate-limit inbound cursor events to 30ms to cap broadcast load.
+        // We use world coordinates (grid space) so every client sees cursors
+        // at the same logical position regardless of their local camera.
+        if (now - lastUpdate < 30) {
+          return;
+        }
+
+        playerLastCursorUpdate.set(player.id, now);
+
+        socket.broadcast.emit(SOCKET_EVENTS.cursorUpdate, {
+          playerId: player.id,
+          name: player.name,
+          color: player.color,
+          x,
+          y
+        });
+      }
+    );
 
     socket.on(
       SOCKET_EVENTS.claimBlock,
@@ -156,12 +188,21 @@ export function registerSocketHandlers(
         player.id
       );
       updateColorUsage(activeColorCounts, player.color as NeonColor, -1);
+      playerLastCursorUpdate.delete(player.id);
 
       console.log(
         `[socket] disconnected id=${socket.id} player=${player.name} reason=${reason}`
       );
 
-      io.emit(SOCKET_EVENTS.playerCount, nextPlayerCount);
+      // Broadcast leave event with metadata for toasts
+      io.emit(SOCKET_EVENTS.playerCount, {
+        count: nextPlayerCount,
+        event: "leave",
+        playerName: player.name
+      });
+
+      // Notify clients to remove the cursor
+      io.emit(SOCKET_EVENTS.cursorRemove, { playerId: player.id });
     });
   });
 }

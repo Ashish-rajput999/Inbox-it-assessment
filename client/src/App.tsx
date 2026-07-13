@@ -96,6 +96,30 @@ const badgeStyle: CSSProperties = {
   fontSize: "13px"
 };
 
+const toastContainerStyle: CSSProperties = {
+  position: "fixed",
+  bottom: "24px",
+  right: "24px",
+  display: "flex",
+  flexDirection: "column",
+  gap: "10px",
+  zIndex: 100,
+  pointerEvents: "none"
+};
+
+const toastStyle: CSSProperties = {
+  padding: "12px 18px",
+  borderRadius: "12px",
+  backgroundColor: "rgba(15, 23, 42, 0.9)",
+  border: "1px solid rgba(148, 163, 184, 0.2)",
+  color: "#f8fafc",
+  fontSize: "14px",
+  fontWeight: 500,
+  boxShadow: "0 10px 30px rgba(2, 6, 23, 0.5)",
+  backdropFilter: "blur(8px)",
+  animation: "toastIn 0.3s ease-out forwards"
+};
+
 export default function App() {
   useGameSocket();
 
@@ -104,6 +128,7 @@ export default function App() {
   const leaderboard = useGameStore((state) => state.leaderboard);
   const player = useGameStore((state) => state.player);
   const playerCount = useGameStore((state) => state.playerCount);
+  const toasts = useGameStore((state) => state.toasts);
 
   const handleBlockClick = useCallback((blockId: string) => {
     socket.emit(SOCKET_EVENTS.claimBlock, { blockId });
@@ -111,6 +136,14 @@ export default function App() {
 
   return (
     <main style={pageStyle}>
+      <style>
+        {`
+          @keyframes toastIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+          }
+        `}
+      </style>
       <GridCanvas onClaimBlock={handleBlockClick} />
 
       <section style={overlayStyle}>
@@ -168,6 +201,14 @@ export default function App() {
           )}
         </div>
       </section>
+
+      <div style={toastContainerStyle}>
+        {toasts.map((toast) => (
+          <div key={toast.id} style={toastStyle}>
+            {toast.message}
+          </div>
+        ))}
+      </div>
     </main>
   );
 }

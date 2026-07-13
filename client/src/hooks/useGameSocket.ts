@@ -2,15 +2,24 @@ import { useEffect } from "react";
 import type {
   Block,
   ClaimBlockResult,
+  CursorRemovePayload,
+  CursorUpdatePayload,
   InitPayload,
-  LeaderboardEntry
+  LeaderboardEntry,
+  PlayerCountPayload
 } from "shared";
 import { SOCKET_EVENTS } from "shared";
 
 import { socket } from "../socket";
 import { useGameStore } from "../store/gameStore";
 
-export function useGameSocket(): void {
+interface UseGameSocketOptions {
+  onCursorUpdate?: (payload: CursorUpdatePayload) => void;
+  onCursorRemove?: (payload: CursorRemovePayload) => void;
+}
+
+export function useGameSocket(options: UseGameSocketOptions = {}): void {
+  const { onCursorUpdate, onCursorRemove } = options;
   const initializeGame = useGameStore((state) => state.initializeGame);
   const setConnected = useGameStore((state) => state.setConnected);
   const setLeaderboard = useGameStore((state) => state.setLeaderboard);
@@ -50,12 +59,20 @@ export function useGameSocket(): void {
       updateBlock(block);
     };
 
-    const handlePlayerCount = (count: number) => {
-      setPlayerCount(count);
+    const handlePlayerCount = (payload: PlayerCountPayload) => {
+      setPlayerCount(payload);
     };
 
     const handleLeaderboardUpdated = (entries: LeaderboardEntry[]) => {
       setLeaderboard(entries);
+    };
+
+    const handleCursorUpdate = (payload: CursorUpdatePayload) => {
+      onCursorUpdate?.(payload);
+    };
+
+    const handleCursorRemove = (payload: CursorRemovePayload) => {
+      onCursorRemove?.(payload);
     };
 
     if (socket.connected) {
@@ -69,6 +86,8 @@ export function useGameSocket(): void {
     socket.on(SOCKET_EVENTS.blockUpdated, handleBlockUpdated);
     socket.on(SOCKET_EVENTS.playerCount, handlePlayerCount);
     socket.on(SOCKET_EVENTS.leaderboardUpdated, handleLeaderboardUpdated);
+    socket.on(SOCKET_EVENTS.cursorUpdate, handleCursorUpdate);
+    socket.on(SOCKET_EVENTS.cursorRemove, handleCursorRemove);
 
     return () => {
       socket.off(SOCKET_EVENTS.connect, handleConnect);
@@ -78,9 +97,13 @@ export function useGameSocket(): void {
       socket.off(SOCKET_EVENTS.blockUpdated, handleBlockUpdated);
       socket.off(SOCKET_EVENTS.playerCount, handlePlayerCount);
       socket.off(SOCKET_EVENTS.leaderboardUpdated, handleLeaderboardUpdated);
+      socket.off(SOCKET_EVENTS.cursorUpdate, handleCursorUpdate);
+      socket.off(SOCKET_EVENTS.cursorRemove, handleCursorRemove);
     };
   }, [
     initializeGame,
+    onCursorRemove,
+    onCursorUpdate,
     setConnected,
     setLeaderboard,
     setPlayerCount,

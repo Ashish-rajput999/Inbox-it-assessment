@@ -24,11 +24,15 @@ import {
   getGridWorldBounds,
   GRID_PADDING,
   MAX_ZOOM,
-  type BlockAnimation
+  type BlockAnimation,
+  type RemoteCursor
 } from "../canvas/renderGrid";
+import { useGameSocket } from "../hooks/useGameSocket";
+import { socket } from "../socket";
 import { useGameStore } from "../store/gameStore";
 
 const CLICK_DRAG_THRESHOLD = 6;
+const CURSOR_EMIT_THROTTLE = 40;
 const canvasStyle: CSSProperties = {
   display: "block",
   width: "100vw",
@@ -68,11 +72,50 @@ function GridCanvas({ onClaimBlock }: GridCanvasProps) {
   );
   const hoveredBlockIdRef = useRef<string | null>(null);
   const animationsRef = useRef<Map<string, BlockAnimation>>(new Map());
+  const remoteCursorsRef = useRef<Map<string, RemoteCursor>>(new Map());
+  const lastCursorEmitRef = useRef<number>(0);
+  const lastEmittedWorldPointRef = useRef<WorldPoint | null>(null);
   const dirtyRef = useRef(true);
   const frameRef = useRef<number | null>(null);
   const pointerStateRef = useRef<PointerDragState>(INITIAL_POINTER_STATE);
   const hasFittedCameraRef = useRef(false);
   const dprRef = useRef(1);
+
+  useGameSocket({
+    onCursorUpdate: (payload) => {
+      const remoteCursors = remoteCursorsRef.current;
+      const existing = remoteCursors.get(payload.playerId);
+
+      if (existing) {
+        existing.target = { x: payload.x, y: payload.y };
+        existing.name = payload.name;
+        existing.color = payload.color;
+        existing.lastUpdateAt = performance.now();
+        existing.isRemoving = false;
+      } else {
+        remoteCursors.set(payload.playerId, {
+          playerId: payload.playerId,
+          name: payload.name,
+          color: payload.color,
+          current: { x: payload.x, y: payload.y },
+          target: { x: payload.x, y: payload.y },
+          lastUpdateAt: performance.now(),
+          isRemoving: false
+        });
+      }
+      dirtyRef.current = true;
+      scheduleRender();
+    },
+    onCursorRemove: (payload) => {
+      const cursor = remoteCursorsRef.current.get(payload.playerId);
+      if (cursor) {
+        cursor.isRemoving = true;
+        cursor.removeStartTime = performance.now();
+        dirtyRef.current = true;
+        scheduleRender();
+      }
+    }
+  });
 
   const syncCanvasSize = useMemo(
     () => () => {
@@ -195,6 +238,7 @@ function GridCanvas({ onClaimBlock }: GridCanvasProps) {
         now,
         playerId: playerIdRef.current,
         animations: animationsRef.current,
+        remoteCursors: remoteCursorsRef.current,
         viewport
       });
 
@@ -397,6 +441,25 @@ function GridCanvas({ onClaimBlock }: GridCanvasProps) {
 
     pointerState.lastScreenPoint = screenPoint;
     updateHoverFromPoint(screenPoint);
+
+    // Emit cursor position in world coordinates (grid space)
+    // Throttled to every ~40ms to balance smoothness and network load.
+    const now = performance.now();
+    if (now - lastCursorEmitRef.current > CURSOR_EMIT_THROTTLE) {
+      const worldPoint = screenToWorld(screenPoint, cameraRef.current);
+
+      // Only emit if the position actually changed significantly in world space
+      const lastPoint = lastEmittedWorldPointRef.current;
+      if (
+        !lastPoint ||
+        Math.abs(worldPoint.x - lastPoint.x) > 0.1 ||
+        Math.abs(worldPoint.y - lastPoint.y) > 0.1
+      ) {
+        socket.emit("cursor_move", { x: worldPoint.x, y: worldPoint.y });
+        lastCursorEmitRef.current = now;
+        lastEmittedWorldPointRef.current = worldPoint;
+      }
+    }
   };
 
   const handlePointerUp = (event: ReactPointerEvent<HTMLCanvasElement>) => {
