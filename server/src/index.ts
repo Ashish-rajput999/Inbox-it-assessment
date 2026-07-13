@@ -8,7 +8,27 @@ import { createGameManager } from "./gridManager.js";
 import { registerSocketHandlers } from "./socketHandlers.js";
 
 const PORT = process.env.PORT || 3001;
-const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || "*";
+
+// Harden CORS: Sanitize CLIENT_ORIGIN to prevent server crashes from invalid header characters
+function getSanitizedOrigin(rawOrigin: string | undefined): string {
+  if (!rawOrigin) return "*";
+  
+  const trimmed = rawOrigin.trim();
+  if (!trimmed || trimmed === "*") return "*";
+
+  // Strip trailing slash
+  const sanitized = trimmed.endsWith("/") ? trimmed.slice(0, -1) : trimmed;
+
+  // Validate protocol
+  if (!sanitized.startsWith("http://") && !sanitized.startsWith("https://")) {
+    console.warn(`[server] Invalid CLIENT_ORIGIN "${rawOrigin}" provided. Falling back to "*". Origins must start with http:// or https://`);
+    return "*";
+  }
+
+  return sanitized;
+}
+
+const CLIENT_ORIGIN = getSanitizedOrigin(process.env.CLIENT_ORIGIN);
 
 const app = express();
 
