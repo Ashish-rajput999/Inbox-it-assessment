@@ -2,8 +2,8 @@
 
 A high-performance, real-time multiplayer grid territory game inspired by r/place. Claim blocks, steal territory, and dominate the leaderboard in a neon-infused digital warzone.
 
-🔗 **Live:** [DEPLOY_URL_HERE]  
-**Server:** [SERVER_URL_HERE]
+🔗 **Live:** https://blockwars-xxxxvercelapp.vercel.app 
+**Server:** https://blockwars-server.onrender.com
 
 ## 🚀 Features
 
