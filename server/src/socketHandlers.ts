@@ -1,7 +1,14 @@
 import { randomUUID } from "node:crypto";
-import type { GridState, Player, ServerToClientEvents } from "shared";
+import type {
+  ClientToServerEvents,
+  ClaimBlockPayload,
+  Player,
+  ServerToClientEvents
+} from "shared";
 import { SOCKET_EVENTS } from "shared";
 import type { Server, Socket } from "socket.io";
+
+import type { GameManager } from "./gridManager.js";
 
 const NEON_COLORS = [
   "#FF2D55",
@@ -48,13 +55,15 @@ const ANIMALS = [
   "Puma"
 ] as const;
 
+type NeonColor = (typeof NEON_COLORS)[number];
+
 type BlockWarsServer = Server<
-  Record<string, never>,
+  ClientToServerEvents,
   ServerToClientEvents
 >;
 
 type BlockWarsSocket = Socket<
-  Record<string, never>,
+  ClientToServerEvents,
   ServerToClientEvents
 >;
 
@@ -62,22 +71,55 @@ function pickRandomItem<T>(items: readonly T[]): T {
   return items[Math.floor(Math.random() * items.length)];
 }
 
-function createPlayer(): Player {
+function createInitialColorCounts(): Map<NeonColor, number> {
+  return new Map(NEON_COLORS.map((color) => [color, 0]));
+}
+
+function pickLeastUsedColor(colorCounts: Map<NeonColor, number>): NeonColor {
+  let minimumUsage = Number.POSITIVE_INFINITY;
+
+  for (const color of NEON_COLORS) {
+    const usageCount = colorCounts.get(color) ?? 0;
+    minimumUsage = Math.min(minimumUsage, usageCount);
+  }
+
+  const candidateColors = NEON_COLORS.filter(
+    (color) => (colorCounts.get(color) ?? 0) === minimumUsage
+  );
+
+  return pickRandomItem(candidateColors);
+}
+
+function updateColorUsage(
+  colorCounts: Map<NeonColor, number>,
+  color: NeonColor,
+  delta: number
+): void {
+  const nextCount = Math.max((colorCounts.get(color) ?? 0) + delta, 0);
+  colorCounts.set(color, nextCount);
+}
+
+function createPlayer(color: NeonColor): Player {
   const suffix = Math.floor(10 + Math.random() * 90);
 
   return {
     id: randomUUID(),
-    color: pickRandomItem(NEON_COLORS),
+    color,
     name: `${pickRandomItem(ADJECTIVES)}${pickRandomItem(ANIMALS)}${suffix}`
   };
 }
 
 export function registerSocketHandlers(
   io: BlockWarsServer,
-  grid: GridState
+  gameManager: GameManager
 ): void {
+  const activeColorCounts = createInitialColorCounts();
+
   io.on(SOCKET_EVENTS.connect, (socket: BlockWarsSocket) => {
-    const player = createPlayer();
+    const color = pickLeastUsedColor(activeColorCounts);
+    const player = createPlayer(color);
+    const { playerCount } = gameManager.registerPlayer(player);
+    updateColorUsage(activeColorCounts, color, 1);
 
     console.log(
       `[socket] connected id=${socket.id} player=${player.name} color=${player.color}`
@@ -85,13 +127,41 @@ export function registerSocketHandlers(
 
     socket.emit(SOCKET_EVENTS.init, {
       player,
-      grid
+      grid: gameManager.getGridState()
     });
+    socket.emit(SOCKET_EVENTS.leaderboardUpdated, gameManager.getLeaderboard());
+    io.emit(SOCKET_EVENTS.playerCount, playerCount);
+
+    socket.on(
+      SOCKET_EVENTS.claimBlock,
+      ({ blockId }: ClaimBlockPayload) => {
+        const claimResult = gameManager.claimBlock(player.id, blockId);
+
+        socket.emit(SOCKET_EVENTS.claimResult, claimResult);
+
+        if (!claimResult.success) {
+          return;
+        }
+
+        io.emit(SOCKET_EVENTS.blockUpdated, claimResult.block);
+        io.emit(
+          SOCKET_EVENTS.leaderboardUpdated,
+          gameManager.getLeaderboard()
+        );
+      }
+    );
 
     socket.on(SOCKET_EVENTS.disconnect, (reason) => {
+      const { playerCount: nextPlayerCount } = gameManager.disconnectPlayer(
+        player.id
+      );
+      updateColorUsage(activeColorCounts, player.color as NeonColor, -1);
+
       console.log(
         `[socket] disconnected id=${socket.id} player=${player.name} reason=${reason}`
       );
+
+      io.emit(SOCKET_EVENTS.playerCount, nextPlayerCount);
     });
   });
 }

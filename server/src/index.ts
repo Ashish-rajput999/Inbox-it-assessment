@@ -4,7 +4,7 @@ import { createServer } from "node:http";
 import { Server } from "socket.io";
 import type { ClientToServerEvents, ServerToClientEvents } from "shared";
 
-import { createInitialGrid } from "./gridManager.js";
+import { createGameManager } from "./gridManager.js";
 import { registerSocketHandlers } from "./socketHandlers.js";
 
 const PORT = 3001;
@@ -24,11 +24,13 @@ const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
   }
 });
 
-const grid = createInitialGrid();
+const gameManager = createGameManager();
 
-registerSocketHandlers(io, grid);
+registerSocketHandlers(io, gameManager);
 
 httpServer.listen(PORT, () => {
   console.log(`[server] listening on http://localhost:${PORT}`);
-  console.log(`[server] initialized ${grid.blocks.length} blocks`);
+  console.log(
+    `[server] initialized ${gameManager.getGridState().blocks.length} blocks`
+  );
 });
