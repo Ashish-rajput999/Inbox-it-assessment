@@ -1,4 +1,4 @@
-import type { Block, GridState } from "shared";
+import type { Block, GridState } from "../shared";
 
 import type { Camera, ViewportSize, WorldBounds, WorldPoint } from "./camera";
 import { worldToScreen } from "./camera";

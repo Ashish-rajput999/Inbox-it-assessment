@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type CSSProperties } from "react";
-import { SOCKET_EVENTS } from "shared";
+import { SOCKET_EVENTS } from "./shared";
 
 import GridCanvas from "./components/GridCanvas";
 import { useGameSocket } from "./hooks/useGameSocket";

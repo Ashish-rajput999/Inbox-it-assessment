@@ -4,7 +4,7 @@ import type {
   LeaderboardEntry,
   Player,
   PlayerCountPayload
-} from "shared";
+} from "../shared";
 import { create } from "zustand";
 
 export interface Toast {

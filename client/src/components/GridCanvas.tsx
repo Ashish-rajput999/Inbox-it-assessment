@@ -7,7 +7,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type WheelEvent as ReactWheelEvent
 } from "react";
-import type { GridState } from "shared";
+import type { GridState } from "../shared";
 
 import {
   clampCamera,

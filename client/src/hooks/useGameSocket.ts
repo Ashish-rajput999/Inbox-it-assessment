@@ -7,8 +7,8 @@ import type {
   InitPayload,
   LeaderboardEntry,
   PlayerCountPayload
-} from "shared";
-import { SOCKET_EVENTS } from "shared";
+} from "../shared";
+import { SOCKET_EVENTS } from "../shared";
 
 import { socket } from "../socket";
 import { useGameStore } from "../store/gameStore";
